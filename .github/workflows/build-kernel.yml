@@ -19,7 +19,6 @@ jobs:
 
       - name: Install dependencies
         run: |
-          # Added python to parse the TOML file
           pacman -Syu --noconfirm base-devel git sudo python
 
           useradd -m builduser
@@ -46,7 +45,6 @@ jobs:
           with open('linux-x0rzavi.toml', 'rb') as f:
               config = tomllib.load(f)
 
-          # Mapping from CachyOS GUI's compile_options.json
           mapping = {
               "cachy_config_check": "_cachy_config",
               "nconfig_check": "_makenconfig",
@@ -75,12 +73,10 @@ jobs:
                           if val:
                               out.write(f"export {env_var}='y'\n")
                       else:
-                          # Intercept 'native' and swap it to your specific CPU
                           if toml_key == "cpu_opt_combo" and val == "native":
                               val = "znver1"
                           out.write(f"export {env_var}='{val}'\n")
 
-              # Parse the custom name and substitute the $pkgbase variable
               if "custom_name_edit" in config:
                   name = config["custom_name_edit"].replace("$pkgbase", "linux-cachyos")
                   out.write(f"export CUSTOM_PKGBASE='{name}'\n")
@@ -89,22 +85,22 @@ jobs:
           python parse_config.py
           chown builduser:builduser /home/builduser/build_env.sh
 
-          # Print the generated environment variables to GitHub Actions logs for debugging
           echo "Generated Build Environment:"
           cat /home/builduser/build_env.sh
 
       - name: Setup environment and apply custom name
         run: |
           source /home/builduser/build_env.sh
-          sed -i "s/^pkgbase=.*/pkgbase=\"$CUSTOM_PKGBASE\"/" pkgbuilds/PKGBUILD
+          # FIXED: Point sed at the linux-cachyos subdirectory PKGBUILD
+          sed -i "s/^pkgbase=.*/pkgbase=\"$CUSTOM_PKGBASE\"/" pkgbuilds/linux-cachyos/PKGBUILD
           chown -R builduser:builduser pkgbuilds
 
       - name: Build the kernel (makepkg)
         run: |
-          # Source the dynamically generated bash exports inside the builduser session
           su - builduser -c "
             source /home/builduser/build_env.sh
-            cd $PWD/pkgbuilds 
+            # FIXED: Change directory into the specific kernel variant directory
+            cd $PWD/pkgbuilds/linux-cachyos
             makepkg -scf --cleanbuild --skipchecksums
           "
 
@@ -112,5 +108,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: linux-cachyos-x0rzavi-packages
-          path: pkgbuilds/*.pkg.tar.zst
+          # FIXED: Ensure the artifact upload path also looks in the correct folder
+          path: pkgbuilds/linux-cachyos/*.pkg.tar.zst
           if-no-files-found: error
