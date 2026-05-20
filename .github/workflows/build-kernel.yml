@@ -1,0 +1,116 @@
+name: Build CachyOS Kernel
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "linux-x0rzavi.toml"
+      - "modprobed.db"
+
+jobs:
+  build-cachyos-kernel:
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          # Added python to parse the TOML file
+          pacman -Syu --noconfirm base-devel git sudo python
+
+          useradd -m builduser
+          echo "builduser ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+      - name: Setup modprobed.db for localmodconfig
+        run: |
+          mkdir -p /home/builduser/.config
+          cp modprobed.db /home/builduser/.config/modprobed.db
+          chown -R builduser:builduser /home/builduser/.config
+
+      - name: Clone CachyOS PKGBUILD repository
+        run: |
+          git clone https://github.com/cachyos/linux-cachyos.git pkgbuilds
+          cd pkgbuilds
+          git checkout --force master
+          git clean -fd
+
+      - name: Parse TOML and Generate Environment
+        run: |
+          cat << 'EOF' > parse_config.py
+          import tomllib
+
+          with open('linux-x0rzavi.toml', 'rb') as f:
+              config = tomllib.load(f)
+
+          # Mapping from CachyOS GUI's compile_options.json
+          mapping = {
+              "cachy_config_check": "_cachy_config",
+              "nconfig_check": "_makenconfig",
+              "xconfig_check": "_makexconfig",
+              "localmodcfg_check": "_localmodcfg",
+              "use_current_check": "_use_current",
+              "hardly_check": "_cc_harder",
+              "per_gov_check": "_per_gov",
+              "tcp_bbr3_check": "_tcp_bbr3",
+              "hz_ticks_combo": "_HZ_ticks",
+              "tickrate_combo": "_tickrate",
+              "preempt_combo": "_preempt",
+              "hugepage_combo": "_hugepage",
+              "cpu_opt_combo": "_processor_opt",
+              "lto_combo": "_use_llvm_lto",
+              "builtin_zfs_check": "_build_zfs",
+              "builtin_nvidia_open_check": "_build_nvidia_open",
+              "build_debug_check": "_build_debug"
+          }
+
+          with open('/home/builduser/build_env.sh', 'w') as out:
+              for toml_key, env_var in mapping.items():
+                  if toml_key in config:
+                      val = config[toml_key]
+                      if type(val) is bool:
+                          if val:
+                              out.write(f"export {env_var}='y'\n")
+                      else:
+                          # Intercept 'native' and swap it to your specific CPU
+                          if toml_key == "cpu_opt_combo" and val == "native":
+                              val = "znver1"
+                          out.write(f"export {env_var}='{val}'\n")
+
+              # Parse the custom name and substitute the $pkgbase variable
+              if "custom_name_edit" in config:
+                  name = config["custom_name_edit"].replace("$pkgbase", "linux-cachyos")
+                  out.write(f"export CUSTOM_PKGBASE='{name}'\n")
+          EOF
+
+          python parse_config.py
+          chown builduser:builduser /home/builduser/build_env.sh
+
+          # Print the generated environment variables to GitHub Actions logs for debugging
+          echo "Generated Build Environment:"
+          cat /home/builduser/build_env.sh
+
+      - name: Setup environment and apply custom name
+        run: |
+          source /home/builduser/build_env.sh
+          sed -i "s/^pkgbase=.*/pkgbase=\"$CUSTOM_PKGBASE\"/" pkgbuilds/PKGBUILD
+          chown -R builduser:builduser pkgbuilds
+
+      - name: Build the kernel (makepkg)
+        run: |
+          # Source the dynamically generated bash exports inside the builduser session
+          su - builduser -c "
+            source /home/builduser/build_env.sh
+            cd $PWD/pkgbuilds 
+            makepkg -scf --cleanbuild --skipchecksums
+          "
+
+      - name: Upload Kernel Packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-cachyos-x0rzavi-packages
+          path: pkgbuilds/*.pkg.tar.zst
+          if-no-files-found: error
