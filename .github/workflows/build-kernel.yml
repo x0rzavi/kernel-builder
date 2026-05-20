@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     # Using the exact same image the official CachyOS script.sh uses
     container:
-      image: pttrr/docker-makepkg
+      image: cachyos/docker-makepkg
 
     steps:
       - name: Checkout repository
