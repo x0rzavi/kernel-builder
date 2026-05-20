@@ -10,7 +10,6 @@ on:
 jobs:
   build-cachyos-kernel:
     runs-on: ubuntu-latest
-    # Using the official vanilla Arch image, then upgrading it using the CachyOS wiki method
     container: archlinux:base-devel
 
     env:
@@ -18,7 +17,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Transform Vanilla Arch into CachyOS (v3)
         run: |
@@ -66,7 +65,7 @@ jobs:
           sudo -u builder mkdir -p ${{ env.CCACHE_DIR }} /home/builder/.config
 
       - name: Setup ccache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ env.CCACHE_DIR }}
           key: ccache-kernel-${{ github.run_id }}
@@ -153,7 +152,7 @@ jobs:
           "
 
       - name: Upload Kernel Packages
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: linux-cachyos-x0rzavi-packages
           path: pkgbuilds/linux-cachyos/*.pkg.tar.zst*
