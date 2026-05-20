@@ -10,23 +10,54 @@ on:
 jobs:
   build-cachyos-kernel:
     runs-on: ubuntu-latest
-    # Using the exact same image the official CachyOS script.sh uses
-    container:
-      image: cachyos/docker-makepkg
+    container: archlinux:base-devel
+
+    env:
+      CCACHE_DIR: /home/builder/.ccache
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Python (if not present in the image)
-        run: sudo pacman -S --noconfirm python
+      - name: Setup build environment
+        run: |
+          # 1. Use CachyOS repository (crucial for getting their optimized compilers)
+          cat << 'EOF' >> /etc/pacman.conf
+          [cachyos]
+          Server = https://mirror.cachyos.org/repo/x86_64/cachyos
+          EOF
+
+          # 2. Add CachyOS keyring
+          pacman-key --init
+          pacman-key --recv-keys F3B607488DB35A47 --keyserver keyserver.ubuntu.com
+          pacman-key --lsign-key F3B607488DB35A47
+
+          # 3. Install required tools
+          pacman -Syu --noconfirm --needed ccache python git sudo
+
+          # 4. Setup builder user
+          useradd builder -m
+          echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+          # 5. Optimize makepkg.conf for GitHub Actions
+          sed -i 's/#MAKEFLAGS="-j2"/MAKEFLAGS="-j$(nproc) -l$(nproc)"/g' /etc/makepkg.conf
+          sed -i 's|!ccache|ccache|' /etc/makepkg.conf
+
+          # 6. Prepare user directories
+          sudo -u builder mkdir -p ${{ env.CCACHE_DIR }} /home/builder/.config
+
+      - name: Setup ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ccache-kernel-${{ github.run_id }}
+          restore-keys: |
+            ccache-kernel-
 
       - name: Setup modprobed.db for localmodconfig
         run: |
-          # The pttrr/docker-makepkg image uses the 'notroot' user
-          mkdir -p /home/notroot/.config
-          cp modprobed.db /home/notroot/.config/modprobed.db
-          sudo chown -R notroot:notroot /home/notroot/.config
+          cp modprobed.db /home/builder/.config/modprobed.db
+          chown -R builder:builder /home/builder/.config
 
       - name: Clone CachyOS PKGBUILD repository
         run: |
@@ -63,13 +94,14 @@ jobs:
               "build_debug_check": "_build_debug"
           }
 
-          with open('/home/notroot/build_env.sh', 'w') as out:
+          with open('/home/builder/build_env.sh', 'w') as out:
               for toml_key, env_var in mapping.items():
                   if toml_key in config:
                       val = config[toml_key]
                       if type(val) is bool:
                           if val:
-                              out.write(f"export {env_var}='y'\n")
+                              # Official GH actions uses 'yes' rather than 'y'
+                              out.write(f"export {env_var}='yes'\n")
                       else:
                           if toml_key == "cpu_opt_combo" and val == "native":
                               val = "znver1"
@@ -81,34 +113,30 @@ jobs:
           EOF
 
           python parse_config.py
-          sudo chown notroot:notroot /home/notroot/build_env.sh
+          chown builder:builder /home/builder/build_env.sh
 
           echo "Generated Build Environment:"
-          cat /home/notroot/build_env.sh
+          cat /home/builder/build_env.sh
 
       - name: Setup environment and apply custom name
         run: |
-          source /home/notroot/build_env.sh
+          source /home/builder/build_env.sh
           sed -i "s/^pkgbase=.*/pkgbase=\"$CUSTOM_PKGBASE\"/" pkgbuilds/linux-cachyos/PKGBUILD
-          sudo chown -R notroot:notroot pkgbuilds
+          chown -R builder:builder pkgbuilds
 
       - name: Build the kernel (makepkg)
         run: |
-          # Since the container already runs as 'notroot', we just source the env and build
-          source /home/notroot/build_env.sh
-          cd pkgbuilds/linux-cachyos
-
-          # We use --noconfirm so pacman dependency installation doesn't hang on [Y/n]
-          makepkg -scf --noconfirm --cleanbuild --skipchecksums
+          # Use the exact sudo execution method from the official Action
+          # --syncdeps resolves dependencies automatically using the CachyOS repo we added!
+          su - builder -c "
+            source /home/builder/build_env.sh
+            cd $PWD/pkgbuilds/linux-cachyos
+            makepkg --skipchecksums --syncdeps --noconfirm --cleanbuild
+          "
 
       - name: Upload Kernel Packages
         uses: actions/upload-artifact@v4
         with:
           name: linux-cachyos-x0rzavi-packages
-          # Note: makepkg in docker-makepkg is configured via makepkg.conf
-          # to output packages to /home/notroot/packages by default, OR
-          # it drops them in the local directory. Let's capture both to be safe.
-          path: |
-            pkgbuilds/linux-cachyos/*.pkg.tar.zst
-            /home/notroot/packages/*.pkg.tar.zst
+          path: pkgbuilds/linux-cachyos/*.pkg.tar.zst*
           if-no-files-found: error
