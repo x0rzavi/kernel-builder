@@ -10,25 +10,23 @@ on:
 jobs:
   build-cachyos-kernel:
     runs-on: ubuntu-latest
+    # Using the exact same image the official CachyOS script.sh uses
     container:
-      image: archlinux:latest
+      image: pttrr/docker-makepkg
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: |
-          pacman -Syu --noconfirm base-devel git sudo python
-
-          useradd -m builduser
-          echo "builduser ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+      - name: Install Python (if not present in the image)
+        run: sudo pacman -S --noconfirm python
 
       - name: Setup modprobed.db for localmodconfig
         run: |
-          mkdir -p /home/builduser/.config
-          cp modprobed.db /home/builduser/.config/modprobed.db
-          chown -R builduser:builduser /home/builduser/.config
+          # The pttrr/docker-makepkg image uses the 'notroot' user
+          mkdir -p /home/notroot/.config
+          cp modprobed.db /home/notroot/.config/modprobed.db
+          sudo chown -R notroot:notroot /home/notroot/.config
 
       - name: Clone CachyOS PKGBUILD repository
         run: |
@@ -65,7 +63,7 @@ jobs:
               "build_debug_check": "_build_debug"
           }
 
-          with open('/home/builduser/build_env.sh', 'w') as out:
+          with open('/home/notroot/build_env.sh', 'w') as out:
               for toml_key, env_var in mapping.items():
                   if toml_key in config:
                       val = config[toml_key]
@@ -83,31 +81,34 @@ jobs:
           EOF
 
           python parse_config.py
-          chown builduser:builduser /home/builduser/build_env.sh
+          sudo chown notroot:notroot /home/notroot/build_env.sh
 
           echo "Generated Build Environment:"
-          cat /home/builduser/build_env.sh
+          cat /home/notroot/build_env.sh
 
       - name: Setup environment and apply custom name
         run: |
-          source /home/builduser/build_env.sh
-          # FIXED: Point sed at the linux-cachyos subdirectory PKGBUILD
+          source /home/notroot/build_env.sh
           sed -i "s/^pkgbase=.*/pkgbase=\"$CUSTOM_PKGBASE\"/" pkgbuilds/linux-cachyos/PKGBUILD
-          chown -R builduser:builduser pkgbuilds
+          sudo chown -R notroot:notroot pkgbuilds
 
       - name: Build the kernel (makepkg)
         run: |
-          su - builduser -c "
-            source /home/builduser/build_env.sh
-            # FIXED: Change directory into the specific kernel variant directory
-            cd $PWD/pkgbuilds/linux-cachyos
-            makepkg -scf --cleanbuild --skipchecksums
-          "
+          # Since the container already runs as 'notroot', we just source the env and build
+          source /home/notroot/build_env.sh
+          cd pkgbuilds/linux-cachyos
+
+          # We use --noconfirm so pacman dependency installation doesn't hang on [Y/n]
+          makepkg -scf --noconfirm --cleanbuild --skipchecksums
 
       - name: Upload Kernel Packages
         uses: actions/upload-artifact@v4
         with:
           name: linux-cachyos-x0rzavi-packages
-          # FIXED: Ensure the artifact upload path also looks in the correct folder
-          path: pkgbuilds/linux-cachyos/*.pkg.tar.zst
+          # Note: makepkg in docker-makepkg is configured via makepkg.conf
+          # to output packages to /home/notroot/packages by default, OR
+          # it drops them in the local directory. Let's capture both to be safe.
+          path: |
+            pkgbuilds/linux-cachyos/*.pkg.tar.zst
+            /home/notroot/packages/*.pkg.tar.zst
           if-no-files-found: error
