@@ -21,18 +21,24 @@ jobs:
 
       - name: Setup build environment
         run: |
-          # 1. Use CachyOS repository (crucial for getting their optimized compilers)
-          cat << 'EOF' >> /etc/pacman.conf
-          [cachyos]
-          Server = https://mirror.cachyos.org/repo/x86_64/cachyos
-          EOF
+          # 1. Use CachyOS V3 repositories (Injecting them ABOVE default Arch repos for priority)
+          awk '/^\[core\]/ {
+            print "[cachyos-v3]"
+            print "Server = https://mirror.cachyos.org/repo/x86_64-v3/cachyos-v3"
+            print "[cachyos-core-v3]"
+            print "Server = https://mirror.cachyos.org/repo/x86_64-v3/cachyos-core-v3"
+            print "[cachyos-extra-v3]"
+            print "Server = https://mirror.cachyos.org/repo/x86_64-v3/cachyos-extra-v3"
+            print "[cachyos]"
+            print "Server = https://mirror.cachyos.org/repo/x86_64/cachyos"
+          } 1' /etc/pacman.conf > /tmp/pacman.conf && mv /tmp/pacman.conf /etc/pacman.conf
 
           # 2. Add CachyOS keyring
           pacman-key --init
           pacman-key --recv-keys F3B607488DB35A47 --keyserver keyserver.ubuntu.com
           pacman-key --lsign-key F3B607488DB35A47
 
-          # 3. Install required tools
+          # 3. Install required tools (will now pull v3-optimized clang, ccache, etc.)
           pacman -Syu --noconfirm --needed ccache python git sudo
 
           # 4. Setup builder user
