@@ -21,33 +21,37 @@ jobs:
 
       - name: Transform Vanilla Arch into CachyOS (v3)
         run: |
+          curl https://mirror.cachyos.org/cachyos-repo.tar.xz -o cachyos-repo.tar.xz
+          tar xvf cachyos-repo.tar.xz && cd cachyos-repo
+          ./cachyos-repo.sh
+
           # 1. Import and sign the CachyOS repository key
-          pacman-key --init
-          pacman-key --recv-keys F3B607488DB35A47 --keyserver keyserver.ubuntu.com
-          pacman-key --lsign-key F3B607488DB35A47
+          # pacman-key --init
+          # pacman-key --recv-keys F3B607488DB35A47 --keyserver keyserver.ubuntu.com
+          # pacman-key --lsign-key F3B607488DB35A47
 
           # 2. Install the necessary CachyOS packages via direct URLs (per the official wiki)
-          pacman -U --noconfirm \
-            'https://mirror.cachyos.org/repo/x86_64/cachyos/cachyos-keyring-20240331-1-any.pkg.tar.zst' \
-            'https://mirror.cachyos.org/repo/x86_64/cachyos/cachyos-mirrorlist-27-1-any.pkg.tar.zst' \
-            'https://mirror.cachyos.org/repo/x86_64/cachyos/cachyos-v3-mirrorlist-27-1-any.pkg.tar.zst' \
-            'https://mirror.cachyos.org/repo/x86_64/cachyos/cachyos-v4-mirrorlist-27-1-any.pkg.tar.zst' \
-            'https://mirror.cachyos.org/repo/x86_64/cachyos/pacman-7.1.0.r9.g54d9411-3-x86_64.pkg.tar.zst'
+          # pacman -U --noconfirm \
+          #   'https://mirror.cachyos.org/repo/x86_64/cachyos/cachyos-keyring-20240331-1-any.pkg.tar.zst' \
+          #   'https://mirror.cachyos.org/repo/x86_64/cachyos/cachyos-mirrorlist-27-1-any.pkg.tar.zst' \
+          #   'https://mirror.cachyos.org/repo/x86_64/cachyos/cachyos-v3-mirrorlist-27-1-any.pkg.tar.zst' \
+          #   'https://mirror.cachyos.org/repo/x86_64/cachyos/cachyos-v4-mirrorlist-27-1-any.pkg.tar.zst' \
+          #   'https://mirror.cachyos.org/repo/x86_64/cachyos/pacman-7.1.0.r9.g54d9411-3-x86_64.pkg.tar.zst'
 
           # 3. Add the v3 CachyOS repositories ABOVE the default Arch repos in pacman.conf
-          awk '/^\[core\]/ {
-            print "[cachyos-v3]"
-            print "Include = /etc/pacman.d/cachyos-v3-mirrorlist"
-            print "[cachyos-core-v3]"
-            print "Include = /etc/pacman.d/cachyos-v3-mirrorlist"
-            print "[cachyos-extra-v3]"
-            print "Include = /etc/pacman.d/cachyos-v3-mirrorlist"
-            print "[cachyos]"
-            print "Include = /etc/pacman.d/cachyos-mirrorlist"
-          } 1' /etc/pacman.conf > /tmp/pacman.conf && mv /tmp/pacman.conf /etc/pacman.conf
+          # awk '/^\[core\]/ {
+          #   print "[cachyos-v3]"
+          #   print "Include = /etc/pacman.d/cachyos-v3-mirrorlist"
+          #   print "[cachyos-core-v3]"
+          #   print "Include = /etc/pacman.d/cachyos-v3-mirrorlist"
+          #   print "[cachyos-extra-v3]"
+          #   print "Include = /etc/pacman.d/cachyos-v3-mirrorlist"
+          #   print "[cachyos]"
+          #   print "Include = /etc/pacman.d/cachyos-mirrorlist"
+          # } 1' /etc/pacman.conf > /tmp/pacman.conf && mv /tmp/pacman.conf /etc/pacman.conf
 
           # 4. Synchronize databases and upgrade the system to use v3 packages
-          pacman -Syu --noconfirm
+          # pacman -Syu --noconfirm
 
       - name: Install dependencies
         run: |
