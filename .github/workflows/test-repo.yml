@@ -16,7 +16,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pacman -Syu --noconfirm github-cli
+          pacman -Syu --noconfirm github-cli git
 
       - name: Mock Package and Build DB
         run: |
