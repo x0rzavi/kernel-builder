@@ -11,6 +11,8 @@ jobs:
   build-cachyos-kernel:
     runs-on: ubuntu-latest
     container: archlinux:base-devel
+    permissions:
+      contents: write
 
     env:
       CCACHE_DIR: /home/builder/.ccache
@@ -30,7 +32,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pacman -Syu --noconfirm --needed ccache python git sudo
+          pacman -Syu --noconfirm --needed ccache python git sudo github-cli
 
           # Setup builder user
           useradd builder -m
@@ -130,9 +132,28 @@ jobs:
             makepkg --skipchecksums --syncdeps --noconfirm --cleanbuild
           "
 
-      - name: Upload Kernel Packages
-        uses: actions/upload-artifact@v7
-        with:
-          name: linux-cachyos-x0rzavi-packages
-          path: pkgbuilds/linux-cachyos/*.pkg.tar.zst*
-          if-no-files-found: error
+      - name: Create Pacman Repository Database
+        run: |
+          cd pkgbuilds/linux-cachyos
+          # Create a fresh database containing the newly built packages
+          repo-add -n -R x0rzavi.db.tar.gz *.pkg.tar.zst
+          
+          # repo-add creates symlinks for .db and .files, but GitHub Releases 
+          # needs the actual files. We copy the archives to the expected names.
+          cp x0rzavi.db.tar.gz x0rzavi.db
+          cp x0rzavi.files.tar.gz x0rzavi.files
+
+      - name: Publish to GitHub Releases
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Delete the old release and tag so we only keep the latest kernel
+          gh release delete znver1 --yes --cleanup-tag || true
+          
+          # Create a new release with the packages and database
+          gh release create znver1 \
+            pkgbuilds/linux-cachyos/*.pkg.tar.zst \
+            pkgbuilds/linux-cachyos/x0rzavi.db \
+            pkgbuilds/linux-cachyos/x0rzavi.files \
+            --title "x0rzavi Custom Kernel Repository" \
+            --notes "Automated kernel build"
