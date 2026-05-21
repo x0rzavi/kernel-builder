@@ -50,4 +50,3 @@ jobs:
             x0rzavi.files \
             --title "Test Repository Upload" \
             --notes "Testing DB generation and GH release"
-
