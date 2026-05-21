@@ -153,6 +153,7 @@ jobs:
             if [ -f lib/.rbtree.o.cmd ]; then
               echo 'Command line flags verified:'
               grep -o 'march=[a-zA-Z0-9-]*' lib/.rbtree.o.cmd
+              cat lib/.rbtree.o.cmd
             else
               echo 'Tracking file lib/.rbtree.o.cmd missing'
             fi
