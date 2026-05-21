@@ -22,13 +22,13 @@ jobs:
         run: |
           mkdir -p test-repo
           cd test-repo
-          
+
           # Download a tiny package (nano) to act as a fake kernel package
           curl -O https://mirror.rackspace.com/archlinux/core/os/x86_64/nano-8.2-1-x86_64.pkg.tar.zst
-          
+
           # Run repo-add just like the real build
           repo-add -n -R x0rzavi.db.tar.gz *.pkg.tar.zst
-          
+
           # Remove symlinks and copy
           rm -f x0rzavi.db x0rzavi.files
           cp x0rzavi.db.tar.gz x0rzavi.db
@@ -39,10 +39,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd test-repo
-          
+
           # Delete old test release
           gh release delete test-znver1 --yes --cleanup-tag || true
-          
+
           # Create new test release
           gh release create test-znver1 \
             *.pkg.tar.zst \
@@ -50,3 +50,4 @@ jobs:
             x0rzavi.files \
             --title "Test Repository Upload" \
             --notes "Testing DB generation and GH release"
+

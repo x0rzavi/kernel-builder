@@ -137,7 +137,7 @@ jobs:
           cd pkgbuilds/linux-cachyos
           # Create a fresh database containing the newly built packages
           repo-add -n -R x0rzavi.db.tar.gz *.pkg.tar.zst
-          
+
           # repo-add creates symlinks for .db and .files, but GitHub Releases 
           # needs the actual files. We remove the symlinks first, then copy.
           rm -f x0rzavi.db x0rzavi.files
