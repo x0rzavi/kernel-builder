@@ -120,6 +120,10 @@ jobs:
         run: |
           source /home/builder/build_env.sh
           sed -i "s/^pkgbase=.*/pkgbase=\"$CUSTOM_PKGBASE\"/" pkgbuilds/linux-cachyos/PKGBUILD
+          
+          # Inject the GitHub Run Number as the pkgrel so pacman always sees new builds as updates
+          sed -i "s/^pkgrel=.*/pkgrel=${{ github.run_number }}/" pkgbuilds/linux-cachyos/PKGBUILD
+          
           chown -R builder:builder pkgbuilds
 
       - name: Build the kernel (makepkg)
