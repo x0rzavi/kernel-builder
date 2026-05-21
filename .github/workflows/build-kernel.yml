@@ -49,9 +49,9 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ${{ env.CCACHE_DIR }}
-          key: ccache-kernel-${{ github.run_id }}
+          key: ccache-kernel-v2-${{ github.run_id }}
           restore-keys: |
-            ccache-kernel-
+            ccache-kernel-v2-
 
       - name: Setup modprobed.db for localmodconfig
         run: |
@@ -126,38 +126,38 @@ jobs:
 
           chown -R builder:builder pkgbuilds
 
-      - name: Prepare build environment and verify with a test compile
-        run: |
-          su - builder -c "
-            # Source environment to ensure _processor_opt='generic_v1' is active
-            source /home/builder/build_env.sh
-
-            export KCFLAGS=' -march=znver1'
-            export KCPPFLAGS=' -march=znver1'
-            export KBUILD_RUSTFLAGS=' -Ctarget-cpu=znver1'
-
-            cd $PWD/pkgbuilds/linux-cachyos
-
-            echo '=== Step 1: Downloading, extracting, and configuring kernel sources ==='
-            makepkg --syncdeps --noconfirm --nobuild
-
-            echo '=== Step 2: Locating the extracted kernel source tree ==='
-            SRCDIR=\$(dirname \$(find src/ -maxdepth 2 -name Makefile | head -n 1))
-            echo \"Kernel source directory: \$SRCDIR\"
-            cd \"\$SRCDIR\"
-
-            echo '=== Step 3: Compiling lib/find_bit.o using the kernel make setup ==='
-            make lib/find_bit.o V=1
-
-            echo '=== Step 4: Confirming applied flags in the hidden .cmd track-file ==='
-            if [ -f lib/.find_bit.o.cmd ]; then
-              echo 'Command line flags verified:'
-              grep -o 'march=[a-zA-Z0-9-]*' lib/.find_bit.o.cmd
-              cat lib/.find_bit.o.cmd
-            else
-              echo 'Tracking file lib/.find_bit.o.cmd missing'
-            fi
-          "
+      # - name: Prepare build environment and verify with a test compile
+      #   run: |
+      #     su - builder -c "
+      #       # Source environment to ensure _processor_opt='generic_v1' is active
+      #       source /home/builder/build_env.sh
+      #
+      #       export KCFLAGS=' -march=znver1'
+      #       export KCPPFLAGS=' -march=znver1'
+      #       export KBUILD_RUSTFLAGS=' -Ctarget-cpu=znver1'
+      #
+      #       cd $PWD/pkgbuilds/linux-cachyos
+      #
+      #       echo '=== Step 1: Downloading, extracting, and configuring kernel sources ==='
+      #       makepkg --syncdeps --noconfirm --nobuild
+      #
+      #       echo '=== Step 2: Locating the extracted kernel source tree ==='
+      #       SRCDIR=\$(dirname \$(find src/ -maxdepth 2 -name Makefile | head -n 1))
+      #       echo \"Kernel source directory: \$SRCDIR\"
+      #       cd \"\$SRCDIR\"
+      #
+      #       echo '=== Step 3: Compiling lib/find_bit.o using the kernel make setup ==='
+      #       make lib/find_bit.o V=1
+      #
+      #       echo '=== Step 4: Confirming applied flags in the hidden .cmd track-file ==='
+      #       if [ -f lib/.find_bit.o.cmd ]; then
+      #         echo 'Command line flags verified:'
+      #         grep -o 'march=[a-zA-Z0-9-]*' lib/.find_bit.o.cmd
+      #         cat lib/.find_bit.o.cmd
+      #       else
+      #         echo 'Tracking file lib/.find_bit.o.cmd missing'
+      #       fi
+      #     "
 
       - name: Build the kernel (makepkg)
         run: |
