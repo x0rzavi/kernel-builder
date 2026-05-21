@@ -150,7 +150,7 @@ jobs:
         run: |
           # Delete the old release and tag so we only keep the latest kernel
           gh release delete znver1 --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
-          
+
           # Create a new release with the packages and database
           gh release create znver1 \
             --repo "$GITHUB_REPOSITORY" \
