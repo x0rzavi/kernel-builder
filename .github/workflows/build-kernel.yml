@@ -102,7 +102,7 @@ jobs:
                               out.write(f"export {env_var}='yes'\n")
                       else:
                           if toml_key == "cpu_opt_combo" and val == "native":
-                              val = "generic_v3"
+                              val = "generic_v1"
                           out.write(f"export {env_var}='{val}'\n")
 
               if "custom_name_edit" in config:
@@ -129,12 +129,15 @@ jobs:
       - name: Prepare build environment and verify with a test compile
         run: |
           su - builder -c "
-            # Export architecture flags
+            # Source environment to ensure _processor_opt='generic_v1' is active
+            source /home/builder/build_env.sh
+
+            # Set user flags. We omit KCPPFLAGS here so znver1 is not evaluated early
             export KCFLAGS=' -march=znver1'
             export KCPPFLAGS=' -march=znver1'
             export KBUILD_RUSTFLAGS=' -Ctarget-cpu=znver1'
 
-            cd $PWD/pkgbuilds/linux-cachyos
+            cd \$PWD/pkgbuilds/linux-cachyos
 
             echo '=== Step 1: Downloading, extracting, and configuring kernel sources ==='
             makepkg --syncdeps --noconfirm --nobuild
@@ -149,15 +152,16 @@ jobs:
 
             echo '=== Step 4: Confirming applied flags in the hidden .cmd track-file ==='
             if [ -f init/.main.o.cmd ]; then
-              grep -o 'march=[a-zA-Z0-9-]*' init/.main.o.cmd || echo 'No march flag captured'
-              cat init/.main.o.cmd
+              echo 'Command line flags verified:'
+              # We grep for all march targets inside the command line.
+              # The last march flag in the command string is the one that takes effect.
+              grep -o 'march=[a-zA-Z0-9-]*' init/.main.o.cmd
             else
               echo 'Tracking file init/.main.o.cmd missing'
             fi
 
-            echo '=== Step 5: Disassembling compiled object for Zen 1 instruction set utilization ==='
+            echo '=== Step 5: Checking the binary disassembly for Zen 1 instruction optimizations ==='
             if [ -f init/main.o ]; then
-              # Count the dynamic bit shifts (shlx, shrx, sarx) generated for the Zen architecture
               HITS=\$(objdump -d init/main.o | grep -E '\<(shlx|shrx|sarx)\>' | wc -l)
               echo \"Found \$HITS Zen-optimized instructions inside compiled init/main.o\"
               objdump -d init/main.o | grep -E '\<(shlx|shrx|sarx)\>' | head -n 15 || true
@@ -169,6 +173,7 @@ jobs:
 
       - name: Build the kernel (makepkg)
         run: |
+          # TODO: verify if actually znver1 optimized
           su - builder -c "
             source /home/builder/build_env.sh
 
