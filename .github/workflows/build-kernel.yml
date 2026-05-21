@@ -149,10 +149,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Delete the old release and tag so we only keep the latest kernel
-          gh release delete znver1 --yes --cleanup-tag || true
-
+          gh release delete znver1 --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
+          
           # Create a new release with the packages and database
           gh release create znver1 \
+            --repo "$GITHUB_REPOSITORY" \
             pkgbuilds/linux-cachyos/*.pkg.tar.zst \
             pkgbuilds/linux-cachyos/x0rzavi.db \
             pkgbuilds/linux-cachyos/x0rzavi.files \
