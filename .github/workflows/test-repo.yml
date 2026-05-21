@@ -1,0 +1,52 @@
+name: Test Repo Generation
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-repo:
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install dependencies
+        run: |
+          pacman -Syu --noconfirm github-cli
+
+      - name: Mock Package and Build DB
+        run: |
+          mkdir -p test-repo
+          cd test-repo
+          
+          # Download a tiny package (nano) to act as a fake kernel package
+          curl -O https://mirror.rackspace.com/archlinux/core/os/x86_64/nano-8.2-1-x86_64.pkg.tar.zst
+          
+          # Run repo-add just like the real build
+          repo-add -n -R x0rzavi.db.tar.gz *.pkg.tar.zst
+          
+          # Remove symlinks and copy
+          rm -f x0rzavi.db x0rzavi.files
+          cp x0rzavi.db.tar.gz x0rzavi.db
+          cp x0rzavi.files.tar.gz x0rzavi.files
+
+      - name: Publish Test Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd test-repo
+          
+          # Delete old test release
+          gh release delete test-znver1 --yes --cleanup-tag || true
+          
+          # Create new test release
+          gh release create test-znver1 \
+            *.pkg.tar.zst \
+            x0rzavi.db \
+            x0rzavi.files \
+            --title "Test Repository Upload" \
+            --notes "Testing DB generation and GH release"

@@ -139,7 +139,8 @@ jobs:
           repo-add -n -R x0rzavi.db.tar.gz *.pkg.tar.zst
           
           # repo-add creates symlinks for .db and .files, but GitHub Releases 
-          # needs the actual files. We copy the archives to the expected names.
+          # needs the actual files. We remove the symlinks first, then copy.
+          rm -f x0rzavi.db x0rzavi.files
           cp x0rzavi.db.tar.gz x0rzavi.db
           cp x0rzavi.files.tar.gz x0rzavi.files
 
@@ -149,7 +150,7 @@ jobs:
         run: |
           # Delete the old release and tag so we only keep the latest kernel
           gh release delete znver1 --yes --cleanup-tag || true
-          
+
           # Create a new release with the packages and database
           gh release create znver1 \
             pkgbuilds/linux-cachyos/*.pkg.tar.zst \
