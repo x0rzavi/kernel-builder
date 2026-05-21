@@ -126,12 +126,52 @@ jobs:
 
           chown -R builder:builder pkgbuilds
 
+      - name: Prepare build environment and verify with a test compile
+        run: |
+          su - builder -c "
+            # Export architecture flags
+            export KCFLAGS=' -march=znver1'
+            export KCPPFLAGS=' -march=znver1'
+            export KBUILD_RUSTFLAGS=' -Ctarget-cpu=znver1'
+
+            cd $PWD/pkgbuilds/linux-cachyos
+
+            echo '=== Step 1: Downloading, extracting, and configuring kernel sources ==='
+            makepkg --syncdeps --noconfirm --nobuild
+
+            echo '=== Step 2: Locating the extracted kernel source tree ==='
+            SRCDIR=\$(find src/ -maxdepth 2 -name 'Makefile' -exec dirname {} ';' | head -n 1)
+            echo \"Kernel source directory: \$SRCDIR\"
+            cd \"\$SRCDIR\"
+
+            echo '=== Step 3: Compiling init/main.o using the kernel make setup ==='
+            make init/main.o V=1
+
+            echo '=== Step 4: Confirming applied flags in the hidden .cmd track-file ==='
+            if [ -f init/.main.o.cmd ]; then
+              grep -o 'march=[a-zA-Z0-9-]*' init/.main.o.cmd || echo 'No march flag captured'
+              cat init/.main.o.cmd
+            else
+              echo 'Tracking file init/.main.o.cmd missing'
+            fi
+
+            echo '=== Step 5: Disassembling compiled object for Zen 1 instruction set utilization ==='
+            if [ -f init/main.o ]; then
+              # Count the dynamic bit shifts (shlx, shrx, sarx) generated for the Zen architecture
+              HITS=\$(objdump -d init/main.o | grep -E '\<(shlx|shrx|sarx)\>' | wc -l)
+              echo \"Found \$HITS Zen-optimized instructions inside compiled init/main.o\"
+              objdump -d init/main.o | grep -E '\<(shlx|shrx|sarx)\>' | head -n 15 || true
+            else
+              echo 'Compilation test failed to produce init/main.o'
+              exit 1
+            fi
+          "
+
       - name: Build the kernel (makepkg)
         run: |
           su - builder -c "
             source /home/builder/build_env.sh
 
-            export V=1
             export KCFLAGS=' -march=znver1'
             export KCPPFLAGS=' -march=znver1'
             export KBUILD_RUSTFLAGS=' -Ctarget-cpu=znver1'
