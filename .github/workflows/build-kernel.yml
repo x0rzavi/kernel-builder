@@ -130,6 +130,8 @@ jobs:
         run: |
           su - builder -c "
             source /home/builder/build_env.sh
+
+            export V=1
             export KCFLAGS=' -march=znver1'
             export KCPPFLAGS=' -march=znver1'
             export KBUILD_RUSTFLAGS=' -Ctarget-cpu=znver1'
