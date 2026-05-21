@@ -39,10 +39,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd test-repo
-          
+
           # Delete old test release
           gh release delete test-znver1 --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
-          
+
           # Create new test release
           gh release create test-znver1 \
             --repo "$GITHUB_REPOSITORY" \
