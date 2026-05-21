@@ -24,7 +24,7 @@ jobs:
           cd test-repo
 
           # Download a tiny package (nano) to act as a fake kernel package
-          curl -O https://mirror.rackspace.com/archlinux/core/os/x86_64/nano-8.2-1-x86_64.pkg.tar.zst
+          curl -O https://mirror.rackspace.com/archlinux/core/os/x86_64/nano-9.0-1-x86_64.pkg.tar.zst
 
           # Run repo-add just like the real build
           repo-add -n -R x0rzavi.db.tar.gz *.pkg.tar.zst
