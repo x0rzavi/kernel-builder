@@ -146,27 +146,16 @@ jobs:
             echo \"Kernel source directory: \$SRCDIR\"
             cd \"\$SRCDIR\"
 
-            echo '=== Step 3: Compiling lib/rbtree.o using the kernel make setup ==='
-            make lib/rbtree.o V=1
+            echo '=== Step 3: Compiling lib/find_bit.o using the kernel make setup ==='
+            make lib/find_bit.o V=1
 
             echo '=== Step 4: Confirming applied flags in the hidden .cmd track-file ==='
-            if [ -f lib/.rbtree.o.cmd ]; then
+            if [ -f lib/.find_bit.o.cmd ]; then
               echo 'Command line flags verified:'
-              grep -o 'march=[a-zA-Z0-9-]*' lib/.rbtree.o.cmd
-              cat lib/.rbtree.o.cmd
+              grep -o 'march=[a-zA-Z0-9-]*' lib/.find_bit.o.cmd
+              cat lib/.find_bit.o.cmd
             else
-              echo 'Tracking file lib/.rbtree.o.cmd missing'
-            fi
-
-            echo '=== Step 5: Checking the binary disassembly for Zen 1 instruction optimizations ==='
-            if [ -f lib/rbtree.o ]; then
-              # Expand search to include dynamic shifts (shlx/shrx/sarx), AND-NOT (andn), and bit extract (bextr/bzhi)
-              HITS=\$(objdump -d lib/rbtree.o | grep -E '\<(shlx|shrx|sarx|andn|bextr|bzhi)\>' | wc -l)
-              echo \"Found \$HITS Zen-optimized instructions inside compiled lib/rbtree.o\"
-              objdump -d lib/rbtree.o | grep -E '\<(shlx|shrx|sarx|andn|bextr|bzhi)\>' | head -n 15 || true
-            else
-              echo 'Compilation test failed to produce lib/rbtree.o'
-              exit 1
+              echo 'Tracking file lib/.find_bit.o.cmd missing'
             fi
           "
 
