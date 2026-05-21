@@ -102,7 +102,7 @@ jobs:
                               out.write(f"export {env_var}='yes'\n")
                       else:
                           if toml_key == "cpu_opt_combo" and val == "native":
-                              val = "znver1"
+                              val = "generic_v3"
                           out.write(f"export {env_var}='{val}'\n")
 
               if "custom_name_edit" in config:
