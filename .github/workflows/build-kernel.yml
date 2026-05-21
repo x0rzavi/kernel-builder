@@ -102,7 +102,7 @@ jobs:
                               out.write(f"export {env_var}='yes'\n")
                       else:
                           if toml_key == "cpu_opt_combo" and val == "native":
-                              val = "generic_v1"
+                              val = "generic_v3"
                           out.write(f"export {env_var}='{val}'\n")
 
               if "custom_name_edit" in config:
@@ -146,24 +146,25 @@ jobs:
             echo \"Kernel source directory: \$SRCDIR\"
             cd \"\$SRCDIR\"
 
-            echo '=== Step 3: Compiling init/main.o using the kernel make setup ==='
-            make init/main.o V=1
+            echo '=== Step 3: Compiling lib/rbtree.o using the kernel make setup ==='
+            make lib/rbtree.o V=1
 
             echo '=== Step 4: Confirming applied flags in the hidden .cmd track-file ==='
-            if [ -f init/.main.o.cmd ]; then
+            if [ -f lib/.rbtree.o.cmd ]; then
               echo 'Command line flags verified:'
-              grep -o 'march=[a-zA-Z0-9-]*' init/.main.o.cmd
+              grep -o 'march=[a-zA-Z0-9-]*' lib/.rbtree.o.cmd
             else
-              echo 'Tracking file init/.main.o.cmd missing'
+              echo 'Tracking file lib/.rbtree.o.cmd missing'
             fi
 
             echo '=== Step 5: Checking the binary disassembly for Zen 1 instruction optimizations ==='
-            if [ -f init/main.o ]; then
-              HITS=\$(objdump -d init/main.o | grep -E '\<(shlx|shrx|sarx)\>' | wc -l)
-              echo \"Found \$HITS Zen-optimized instructions inside compiled init/main.o\"
-              objdump -d init/main.o | grep -E '\<(shlx|shrx|sarx)\>' | head -n 15 || true
+            if [ -f lib/rbtree.o ]; then
+              # Expand search to include dynamic shifts (shlx/shrx/sarx), AND-NOT (andn), and bit extract (bextr/bzhi)
+              HITS=\$(objdump -d lib/rbtree.o | grep -E '\<(shlx|shrx|sarx|andn|bextr|bzhi)\>' | wc -l)
+              echo \"Found \$HITS Zen-optimized instructions inside compiled lib/rbtree.o\"
+              objdump -d lib/rbtree.o | grep -E '\<(shlx|shrx|sarx|andn|bextr|bzhi)\>' | head -n 15 || true
             else
-              echo 'Compilation test failed to produce init/main.o'
+              echo 'Compilation test failed to produce lib/rbtree.o'
               exit 1
             fi
           "
