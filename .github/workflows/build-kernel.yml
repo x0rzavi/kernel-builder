@@ -162,17 +162,18 @@ jobs:
       - name: Build the kernel (makepkg)
         run: |
           # TODO: verify if actually znver1 optimized
-          su - builder -c "
+          su - builder -s /bin/bash -c "
+            set -e
             source /home/builder/build_env.sh
 
             export KCFLAGS=' -march=znver1'
             export KCPPFLAGS=' -march=znver1'
             export KBUILD_RUSTFLAGS=' -Ctarget-cpu=znver1'
 
-            cd $PWD/pkgbuilds/linux-cachyos
+            cd "$PWD/pkgbuilds/linux-cachyos"
 
             # Apply PGP key for verification
-            gpg --import *.asc
+            gpg --import ./*.asc
 
             # This will now perfectly resolve dependencies using the v3 CachyOS toolchain!
             makepkg --skipchecksums --syncdeps --noconfirm --cleanbuild
