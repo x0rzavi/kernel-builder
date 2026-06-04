@@ -161,7 +161,6 @@ jobs:
 
       - name: Build the kernel (makepkg)
         run: |
-          WORKSPACE="$GITHUB_WORKSPACE"
           # TODO: verify if actually znver1 optimized
           su - builder -s /bin/bash <<EOF
           set -euo pipefail
@@ -171,7 +170,8 @@ jobs:
           export KCPPFLAGS="-march=znver1"
           export KBUILD_RUSTFLAGS="-Ctarget-cpu=znver1"
 
-          cd "$WORKSPACE/pkgbuilds/linux-cachyos"
+          cd "$GITHUB_WORKSPACE/pkgbuilds/linux-cachyos"
+          ls
 
           # Apply PGP key for verification
           shopt -s nullglob
