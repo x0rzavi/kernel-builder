@@ -170,7 +170,7 @@ jobs:
             export KCPPFLAGS="-march=znver1"
             export KBUILD_RUSTFLAGS="-Ctarget-cpu=znver1"
 
-            cd "$PWD/pkgbuilds/linux-cachyos"
+            cd "/github/workspace/pkgbuilds/linux-cachyos"
 
             # Apply PGP key for verification
             shopt -s nullglob
