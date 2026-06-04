@@ -173,7 +173,10 @@ jobs:
             cd "$PWD/pkgbuilds/linux-cachyos"
 
             # Apply PGP key for verification
-            gpg --import ./*.asc
+            shopt -s nullglob
+            asc_files=( ./*.asc )
+            ((${#asc_files[@]})) || { echo "No .asc files found" >&2; exit 1; }
+            gpg --import "${asc_files[@]}"
 
             # This will now perfectly resolve dependencies using the v3 CachyOS toolchain!
             makepkg --skipchecksums --syncdeps --noconfirm --cleanbuild
