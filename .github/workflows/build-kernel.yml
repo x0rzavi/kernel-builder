@@ -162,13 +162,13 @@ jobs:
       - name: Build the kernel (makepkg)
         run: |
           # TODO: verify if actually znver1 optimized
-          su - builder -s /bin/bash -c "
-            set -e
+          su - builder -s /bin/bash <<'EOF'
+            set -euo pipefail
             source /home/builder/build_env.sh
 
-            export KCFLAGS=' -march=znver1'
-            export KCPPFLAGS=' -march=znver1'
-            export KBUILD_RUSTFLAGS=' -Ctarget-cpu=znver1'
+            export KCFLAGS="-march=znver1"
+            export KCPPFLAGS="-march=znver1"
+            export KBUILD_RUSTFLAGS="-Ctarget-cpu=znver1"
 
             cd "$PWD/pkgbuilds/linux-cachyos"
 
@@ -176,10 +176,12 @@ jobs:
             shopt -s nullglob
             asc_files=( ./*.asc )
             ((${#asc_files[@]})) || { echo "No .asc files found" >&2; exit 1; }
+
             gpg --import "${asc_files[@]}"
 
             # This will now perfectly resolve dependencies using the v3 CachyOS toolchain!
             makepkg --skipchecksums --syncdeps --noconfirm --cleanbuild
+          EOF
           "
 
       - name: Create Pacman Repository Database
